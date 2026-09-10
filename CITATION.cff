@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite it as below."
+title: "Khmer-LLaDA-Small: a small masked diffusion language model for Khmer"
+authors:
+  - family-names: Pich09
+    email: atworkmonkey@gmail.com
+repository-code: "https://github.com/Pich09/Khmer-LLaDA-Small"
+license: Apache-2.0
+keywords:
+  - khmer
+  - diffusion language model
+  - LLaDA
+  - low-resource NLP
+references:
+  - type: article
+    title: "Large Language Diffusion Models"
+    authors:
+      - family-names: Nie
+    notes: "LLaDA — objective, masking process, and sampler adapted from this work."
+    url: "https://github.com/ML-GSAI/LLaDA"

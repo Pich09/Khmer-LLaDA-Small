@@ -1,0 +1,46 @@
+# T4 16 GB training configuration. Start here, then run scripts/count_params.py and
+# profile VRAM before raising physical_batch. See PLAN.md §8.
+
+seq_len: 512
+
+# optimization — Warmup-Stable-Decay per LLaDA paper §2.2, values 0->4e-4->1e-4->1e-5
+# scaled to our token budget instead of their literal 1.2T/0.8T/0.3T (see train.py::lr_at).
+lr: 4.0e-4                 # peak, paper's literal value
+mid_lr: 1.0e-4              # paper's literal step-down value
+min_lr: 1.0e-5              # paper's literal floor
+warmup_steps: 500
+weight_decay: 0.1
+beta1: 0.9
+beta2: 0.95
+grad_clip_norm: 1.0
+
+# batch: effective_tokens/step = physical_batch * grad_accum * seq_len * world_size
+physical_batch: 8         # a ~110M model at seq 512 fits far more than 1 on 16GB — profile!
+grad_accum: 32            # -> ~131k tokens/step per GPU (x world_size under torchrun DDP)
+
+# schedule by TOKENS, not epochs. Combined corpus (original + nphearum + Khmer Wikipedia,
+# scripts/pretokenize.py + pretokenize_extra_parallel.py): 407.8M tokens.
+# 6 epochs over 407.8M =~2.45B tokens (~38 tok/param for small_a's 64.1M).
+total_tokens: 2_450_000_000
+# total_steps is derived: total_tokens / (physical_batch * grad_accum * seq_len * world_size)
+
+# memory (enable only when needed)
+precision: fp16           # T4 has no bf16 hardware
+gradient_checkpointing: false   # turn on at seq 1024 or model >= 250M
+adam_8bit: false
+
+# io
+data_glob: "data/shards/train_*.npy"
+val_glob: "data/shards/val_*.npy"
+ckpt_dir: "checkpoints"
+save_every_steps: 100     # last.pt every 100 steps + status.json; best.pt on every val improvement
+val_every_steps: 100
+log_every_steps: 20
+val_batches: 40
+val_nll_samples: 64
+seed: 42
+
+# logging
+wandb: false
+wandb_project: "khmer-llada-small"
+run_name: "small_a_run1"

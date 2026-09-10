@@ -1,0 +1,23 @@
+.venv/
+__pycache__/
+*.pyc
+data/raw/
+data/raw_extra/
+data/shards/
+data/overfit.npy
+checkpoints/
+experiments/*/
+runs_archive/
+export/
+wandb/
+*.log
+.DS_Store
+*.pdf
+*.bundle
+# vendored tokenizer binaries (downloaded via scripts/setup.sh)
+tokenizer/khmer_sp.model
+tokenizer/khmer_sp.vocab
+tokenizer/*.json
+tokenizer/khmer_segmentation.py
+
+.pytest_cache/

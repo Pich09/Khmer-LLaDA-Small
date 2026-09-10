@@ -1,0 +1,13 @@
+# Pin exactly — khmer-nltk / wordninja / sentencepiece drift silently re-tokenizes the corpus
+# and misaligns a resumed run's embeddings.
+torch==2.4.1
+numpy==1.26.4
+sentencepiece==0.2.0
+khmer-nltk==1.6
+wordninja==2.0.0
+tqdm==4.66.5
+pyyaml==6.0.2
+huggingface-hub==0.24.6
+pytest==8.3.3
+# optional: offline experiment logging
+# wandb==0.17.8
