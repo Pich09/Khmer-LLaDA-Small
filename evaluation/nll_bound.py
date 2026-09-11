@@ -20,12 +20,12 @@ def nll_bound(model, batches, mask_id: int, n_samples: int = 64, eps: float = 1e
     total, nb = 0.0, 0
     for batch in batches:
         g.manual_seed(seed + nb)          # deterministic per batch, stable across checkpoints
-        s = 0.0
+        s = torch.zeros((), device=batch.device)
         for _ in range(n_samples):
             # re-seed torch's default RNG path deterministically for forward_process
             torch.manual_seed(int(torch.randint(0, 2**31 - 1, (1,), generator=g).item()))
             xt, masked, p = forward_process(batch, mask_id, eps, pad_id=pad_id)
-            s += diffusion_loss(model(xt), batch, masked, p).item()
-        total += s / n_samples
+            s += diffusion_loss(model(xt), batch, masked, p)
+        total += (s / n_samples).item()
         nb += 1
     return total / max(1, nb)

@@ -23,6 +23,7 @@ Multi-GPU (DistributedDataParallel, one process per GPU via torchrun):
 """
 import argparse
 import contextlib
+import datetime
 import json
 import math
 import os
@@ -116,7 +117,7 @@ def main():
     ddp = world_size > 1
 
     if ddp:
-        dist.init_process_group(backend="nccl")
+        dist.init_process_group(backend="nccl", timeout=datetime.timedelta(minutes=45))
         torch.cuda.set_device(local_rank)
         device = f"cuda:{local_rank}"
     else:
