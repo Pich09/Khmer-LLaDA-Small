@@ -174,6 +174,35 @@ def main():
         if is_main:
             print(f"resumed at step {step}, tokens_seen {tokens_seen:,}")
 
+    # optional: push checkpoints to a HF Hub model repo on every local save (same cadence as
+    # save_every_steps), so a Kaggle-style session that dies mid-run still has its latest
+    # checkpoint recoverable from the Hub instead of only a copy sitting in /kaggle/working.
+    # Set both env vars (the notebooks do this from the HF_TOKEN/HUB_CKPT_REPO cell) to enable;
+    # unset/empty means local-only, same as before.
+    hub_repo = os.environ.get("HUB_CKPT_REPO", "")
+    hub_token = os.environ.get("HF_TOKEN", "")
+    hub_api = None
+    if is_main and hub_repo and hub_token:
+        from huggingface_hub import HfApi
+        hub_api = HfApi(token=hub_token)
+        print(f"hub sync: checkpoints -> {hub_repo}/checkpoints/ every {tc['save_every_steps']} steps")
+
+    def hub_push(*filenames):
+        if not hub_api:
+            return
+        for name in filenames:
+            path = os.path.join(tc["ckpt_dir"], name)
+            if not os.path.exists(path):
+                continue
+            try:
+                hub_api.upload_file(path_or_fileobj=path, path_in_repo=f"checkpoints/{name}",
+                                    repo_id=hub_repo, repo_type="model",
+                                    commit_message=f"{tc.get('run_name', 'run')} step {step}")
+            except Exception as e:
+                # a dropped connection here shouldn't kill training — the local file is safe
+                # and the next save (100 steps later) will retry.
+                print(f"  (hub sync failed for {name}: {e})", flush=True)
+
     run_dir = os.path.join("experiments", tc.get("run_name", "run"))
     metrics_f = None
     wandb = None
@@ -266,6 +295,7 @@ def main():
                           scaler=scaler, loader=loader, step=step, tokens_seen=tokens_seen,
                           model_config=asdict(cfg), train_config=tc)
                 print(f"  new best val_nll_bound {vb:.4f} -> best.pt", flush=True)
+                hub_push("best.pt")
 
         if is_main and step % tc["save_every_steps"] == 0:
             ckpt.save(os.path.join(tc["ckpt_dir"], "last.pt"), model=raw_model, optimizer=opt,
@@ -276,6 +306,7 @@ def main():
                         lr=opt.param_groups[0]["lr"], train_loss=last_train_loss,
                         val_nll_bound=None, best_val=best_val if best_val < float("inf") else None,
                         run_name=tc.get("run_name", "run"))
+            hub_push("last.pt", "status.json")
 
         if ddp:
             # validation (Monte-Carlo nll_bound, up to val_batches*val_nll_samples forward
@@ -296,6 +327,7 @@ def main():
                     lr=opt.param_groups[0]["lr"], train_loss=locals().get("last_train_loss"),
                     val_nll_bound=None, best_val=best_val if best_val < float("inf") else None,
                     run_name=tc.get("run_name", "run"))
+        hub_push("final.pt", "status.json")
         metrics_f.close()
         print("done.")
     if ddp:
